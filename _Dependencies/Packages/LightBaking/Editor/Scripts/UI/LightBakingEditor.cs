@@ -36,24 +36,24 @@ public class LightBaking : EditorWindow {
     private string[] directFilterOptions = new[] { "Gaussian", "A-Trous", "None" };
 
     private int directSamples = 32;
-    private int indirectSamples = 512;
+    private int indirectSamples = 1024;
     private int environmentSamples = 256;
     private int maxBounces = 2;
     private int denoiserIndex = 0;
     private int lightmapSizeIndex = 5;
-    private int lightmapResolution = 40;
+    private int lightmapResolution = 100;
     private bool enableAdvancedSettings = false;
     private int lightmapperIndex = 1;
     private bool importanceSampling = true;
     private int directFilterIndex = 1;
     private float directRadius = 1f;
     private float directSigma = 1f;
-    private int indirectDenoiserIndex = 1;
+    private int indirectDenoiserIndex = 0;
     private int indirectFilterIndex = 1;
     private float indirectRadius = 1f;
     private float indirectSigma = 1f;
     private bool enableAO = false;
-    private int aoDenoiserIndex = 2;
+    private int aoDenoiserIndex = 0;
     private int aoFilterIndex = 1;
     private float aoRadius = 1f;
     private float aoSigma = 1f;
@@ -65,10 +65,11 @@ public class LightBaking : EditorWindow {
     private float albedoBoost = 1f;
     private float indirectIntensity = 1f;
     private int filteringIndex = 1;
+    private Color ambientColor = Color.white;
 
-    [MenuItem("Tools/Light Baking")]
+    [MenuItem("Tools/Lumos")]
     public static void ShowWindow() {
-        GetWindow<LightBaking>("Light Baking");
+        GetWindow<LightBaking>("Lumos");
     }
 
     private void OnEnable() {
@@ -176,6 +177,17 @@ public class LightBaking : EditorWindow {
 
         if (showActionSettings) {
             EditorGUI.indentLevel++;
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Respect Slot Active", GUILayout.Width(190));
+            resoLinkHelper.respectSlotActiveState = EditorGUILayout.Toggle(resoLinkHelper.respectSlotActiveState);
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Respect Mesh Renderer Active", GUILayout.Width(190));
+            resoLinkHelper.respectMeshRendererActiveState = EditorGUILayout.Toggle(resoLinkHelper.respectMeshRendererActiveState);          
+            EditorGUILayout.EndHorizontal();
+
             if (GUILayout.Button("Retrieve Resonite Data")) {
                 RetrieveMesh();
             }
@@ -283,20 +295,36 @@ public class LightBaking : EditorWindow {
                 if (packingIndex == 1) {
                     EditorGUI.indentLevel++;
                     packingMethodIndex = EditorGUILayout.Popup("Packing Method", packingMethodIndex, packingMethodOptions);
-                    packingIterations = EditorGUILayout.IntSlider("Packing Iterations", packingIterations, 1, 10);
+                    packingIterations = EditorGUILayout.IntSlider("Packing Iterations", packingIterations, 1, 131072);
                     lightmapPadding = EditorGUILayout.IntField("Lightmap Padding", lightmapPadding);
                     blockAlignedPacking = EditorGUILayout.Toggle("Block Aligned", blockAlignedPacking);
                     EditorGUI.indentLevel--;
                 }
             }
 
+            int previousSize = lightmapSizeIndex;
+
             lightmapResolution = EditorGUILayout.IntField("Lightmap Resolution", lightmapResolution);
             lightmapSizeIndex = EditorGUILayout.Popup("Max Lightmap Size", lightmapSizeIndex, lightmapSizeOptions);
+
+            if (previousSize != lightmapSizeIndex && lightmapSizeIndex > 6) {
+                if (!EditorUtility.DisplayDialog("Confirm Action", "At this resolution, a very powerful computer is required. Do you wish to proceed?", "Yes", "No")) {
+                    lightmapSizeIndex = previousSize;
+                }
+            }
 
             if (enableAdvancedSettings) {
                 enableAO = EditorGUILayout.Toggle("Ambient Occlusion", enableAO);
                 albedoBoost = EditorGUILayout.Slider("Albedo Boost", albedoBoost, 0f, 10f);
                 indirectIntensity = EditorGUILayout.Slider("Indirect Intensity", indirectIntensity, 0f, 5f);
+            }
+
+            Color previousColor = ambientColor;
+            ambientColor = EditorGUILayout.ColorField("Ambient Color", ambientColor);
+
+            if (previousColor != ambientColor) {
+                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+                RenderSettings.ambientLight = ambientColor;
             }
 
             bool oldAdvancedSettings = enableAdvancedSettings;
@@ -387,9 +415,16 @@ public class LightBaking : EditorWindow {
         lightingSettings.lightmapPadding = lightmapPadding;
         lightingSettings.blockAlignedPacking = blockAlignedPacking;
         lightingSettings.lightmapResolution = lightmapResolution;
+        lightingSettings.lightmapMaxSize = int.Parse(lightmapSizeOptions[lightmapSizeIndex]);
+
         lightingSettings.ao = enableAO;
         lightingSettings.albedoBoost = albedoBoost;
         lightingSettings.aoExponentIndirect = indirectIntensity;
+
+        lightingSettings.bakedGI = true;
+        lightingSettings.lightProbeSampleCountMultiplier = 1;
+        lightingSettings.lightmapCompression = LightmapCompression.None;
+        lightingSettings.directionalityMode = LightmapsMode.NonDirectional;
     }
 
     private void CreateFolderPickerGUI(string name, bool connected, ref string path) {
@@ -422,7 +457,7 @@ public class LightBaking : EditorWindow {
             await Task.Delay(1);
             await ProgressBar(meshXCache.UpdatePathCache);
             await Task.Delay(1);
-            await ProgressBar(resoLinkHelper.FetchMeshSlots);
+            await ProgressBar(resoLinkHelper.FetchSlots);
             await Task.Delay(1);
             await ProgressBar(resoLinkHelper.BuildLookupTables);
             await Task.Delay(1);
