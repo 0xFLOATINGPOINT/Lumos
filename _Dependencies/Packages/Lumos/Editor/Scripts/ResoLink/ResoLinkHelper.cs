@@ -263,7 +263,8 @@ namespace LightBakingResoLink {
         };
 
         private static readonly HashSet<string> BlacklistedComponentsChildren = new HashSet<string> {
-            "[FrooxEngine]FrooxEngine.Light"
+            "[FrooxEngine]FrooxEngine.Light",
+            "[FrooxEngine]FrooxEngine.CommonAvatarBuilder"
         };
 
         private ResoniteLink.Component GetMeshRenderer(SlotData slotData) {
