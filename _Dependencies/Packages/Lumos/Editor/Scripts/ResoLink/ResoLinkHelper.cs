@@ -670,12 +670,37 @@ namespace LightBakingResoLink {
 
             lightObj.intensity = (intensity as Field_float)?.Value ?? 1f;
 
-            lightObj.color = new Color(
-                ((color as Field_colorX)?.Value.r ?? 1f),
-                ((color as Field_colorX)?.Value.g ?? 1f),
-                ((color as Field_colorX)?.Value.b ?? 1f),
-                ((color as Field_colorX)?.Value.a ?? 1f)
-            );
+            string colorX_Profile = (color as Field_colorX)?.Value.Profile;
+
+//Debug.Log($"Light.Color.Profile = {(color as Field_colorX)?.Value.Profile})");
+            if (colorX_Profile == "Linear")
+            {
+                lightObj.color = new Color
+                    (
+                        ((color as Field_colorX)?.Value.r ?? 1f),
+                        ((color as Field_colorX)?.Value.g ?? 1f),
+                        ((color as Field_colorX)?.Value.b ?? 1f),
+                        ((color as Field_colorX)?.Value.a ?? 1f)
+                    );
+/* Yes i know this debugging is ugly as sin :3
+Debug.Log
+(@$"performing Linear > sRGB function:
+Input color = RGBA [{lightObj.color.r.ToString("F7")}, {lightObj.color.g.ToString("F7")}, {lightObj.color.b.ToString("F7")}, {lightObj.color.a.ToString("F7")}
+Output color = RGBA [{lightObj.color.gamma.r.ToString("F7")}, {lightObj.color.gamma.g.ToString("F7")}, {lightObj.color.gamma.b.ToString("F7")}, {lightObj.color.gamma.a.ToString("F7")}"
+);
+*/
+                lightObj.color = lightObj.color.gamma;
+            }
+            else
+            {
+                lightObj.color = new Color
+                    (
+                        ((color as Field_colorX)?.Value.r ?? 1f),
+                        ((color as Field_colorX)?.Value.g ?? 1f),
+                        ((color as Field_colorX)?.Value.b ?? 1f),
+                        ((color as Field_colorX)?.Value.a ?? 1f)
+                    );
+            }
 
             lightObj.shadows = new Dictionary<string, LightShadows> {
                 { "None", LightShadows.None },
